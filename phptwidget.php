@@ -78,5 +78,7 @@
 	$date = Date_Difference::getStringResolved(asString($item->xpath('pubDate')));
 	$loc = asString($item->xpath('twitter:place/twitter:full_name'));
 	$via = asString($item->xpath('twitter:source'));
-	echo "$tweet<br /><div id='twittertime'>tweeted $date from $loc</div>";  
+	if($loc != "")	echo "$tweet<br /><div id='twittertime'>tweeted $date from $loc</div>"; 
+	else if($via != "") echo "$tweet<br /><div id='twittertime'>tweeted $date from $via</div>";
+	else echo "$tweet<br /><div id='twittertime'>tweeted $date</div>"; 
 ?>
