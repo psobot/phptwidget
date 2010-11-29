@@ -5,14 +5,13 @@
 	 *	Written by Peter Sobot (petersobot.com)
 	 *	v2.0: November 24, 2010
 	 *	http://github.com/psobot/phptwidget
-	 *
+	 *	
 	 *	Licensed under the MIT license.
 	 *
 	 */
 
 	ini_set("allow_url_fopen", "On");
-	define("USERNAME", "psobot");		//Set your username here.
-	define("TWEETPREFIXLENGTH",  strlen(USERNAME) + 2);
+	define("TWITTER_USERNAME", "psobot");		//Set your username here.
 
 	class Date_Difference {
 		/**
@@ -53,32 +52,59 @@
 			} 
 		} 
 	}
-
+	
+	/*
+	 *	input:		string of tweet
+	 *	returns:	boolean (if tweet is an @reply)
+	 */
 	function isAtReply($tweet)	{	return strpos($tweet, "@") === 0;		}
+
+	/*
+	 *	input:		string of tweet
+	 *	returns:	boolean (if tweet is a retweet)
+	 */
 	function isReTweet($tweet)	{	return strpos($tweet, "RT") === 0;		}
+
+	/*
+	 *	input:		XPath Array
+	 *	returns:	first element of xPath
+	 */
 	function asString($xpath)	{	return $xpath[0];						}
 
-	$data = simplexml_load_file("http://twitter.com/statuses/user_timeline/".USERNAME.".rss");
-	if($data === false)	die("Something went wrong, Twitter's not responding... so insert a witty tweet here.");
+	/*
+	 *	input: 	username to search for	(defaults to this file's TWITTER_USERNAME defined value)
+	 *	output:	HTML string of latest tweet, in following format
+	 *				<div id='tweet'>Tweet goes here</div>
+	 *				<div id='twittertime'>tweeted x minutes ago from [physical location or web client, in that order]</div>
+	 */
+	function latestTweet($username = TWITTER_USERNAME){
+		$data = simplexml_load_file("http://twitter.com/statuses/user_timeline/".$username.".rss");
+		if($data === false)	die("Something went wrong, Twitter's not responding... so insert a witty tweet here.");
+		
+		foreach($data->getNamespaces(true) as $prefix => $namespace)	$data->registerXPathNamespace($prefix, $namespace);
 
-	foreach($data->getNamespaces(true) as $prefix => $namespace)	$data->registerXPathNamespace($prefix, $namespace);
-
-	$item = null;
-	$posts = $data->xpath('/rss/channel/item');
-	foreach($posts as $post){
-		$title = $post->xpath('title');
-		$tweet = substr($title[0], TWEETPREFIXLENGTH);
-		if(!(isAtReply($tweet) || isReTweet($tweet))){
-			$item = $post;
-			break;
+		$prefixlength = strlen($username) + 2;
+		$item = null;
+		$posts = $data->xpath('/rss/channel/item');
+		foreach($posts as $post){
+			$title = $post->xpath('title');
+			$tweet = substr($title[0], $prefixlength);
+			if(!(isAtReply($tweet) || isReTweet($tweet))){	//Comment out this line to allow for @replies and retweets.
+				$item = $post;
+				break;
+			}												//Also this line.
 		}
+
+		$tweet = substr(asString($item->xpath('title')), $prefixlength);
+		$date = Date_Difference::getStringResolved(asString($item->xpath('pubDate')));
+		$loc = asString($item->xpath('twitter:place/twitter:full_name'));
+		$via = asString($item->xpath('twitter:source'));
+		$r = "<div id='tweet'>$tweet</div>";
+		if($loc != "")	$r .= "<div id='twittertime'>tweeted $date from $loc</div>"; 
+		else if($via != "") $r .= "<div id='twittertime'>tweeted $date from $via</div>";
+		else $r .= "<div id='twittertime'>tweeted $date</div>";
+		return $r;
 	}
 
-	$tweet = substr(asString($item->xpath('title')), TWEETPREFIXLENGTH);
-	$date = Date_Difference::getStringResolved(asString($item->xpath('pubDate')));
-	$loc = asString($item->xpath('twitter:place/twitter:full_name'));
-	$via = asString($item->xpath('twitter:source'));
-	if($loc != "")	echo "$tweet<br /><div id='twittertime'>tweeted $date from $loc</div>"; 
-	else if($via != "") echo "$tweet<br /><div id='twittertime'>tweeted $date from $via</div>";
-	else echo "$tweet<br /><div id='twittertime'>tweeted $date</div>"; 
+	echo latestTweet();
 ?>
