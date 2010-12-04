@@ -96,13 +96,17 @@
 		}
 
 		$tweet = substr(asString($item->xpath('title')), $prefixlength);
+		$tweet = preg_replace("/\.[ ]+/", ".<br />", $tweet, 1);	//force all sentences onto newlines.
+
 		$date = Date_Difference::getStringResolved(asString($item->xpath('pubDate')));
 		$loc = asString($item->xpath('twitter:place/twitter:full_name'));
 		$via = asString($item->xpath('twitter:source'));
 		$r = "<div id='tweet'>$tweet</div>";
+
 		if($loc != "")	$r .= "<div id='twittertime'>tweeted $date from $loc</div>"; 
 		else if($via != "") $r .= "<div id='twittertime'>tweeted $date from $via</div>";
 		else $r .= "<div id='twittertime'>tweeted $date</div>";
+
 		return $r;
 	}
 
