@@ -66,10 +66,11 @@
 	function isReTweet($tweet)	{	return strpos($tweet, "RT") === 0;		}
 
 	/*
-	 *	input:		XPath Array
-	 *	returns:	first element of xPath
+	 *	input:		Array
+	 *	returns:	first element of Array
+	 *	
 	 */
-	function asString($xpath)	{	return $xpath[0];						}
+	function firstOf($a)		{	return $a[0];							}
 
 	/*
 	 *	input: 	username to search for	(defaults to this file's TWITTER_USERNAME defined value)
@@ -87,7 +88,7 @@
 		$item = null;
 		$posts = $data->xpath('/rss/channel/item');
 		foreach($posts as $post){
-			$title = $post->xpath('title');
+			$title = $post->title;
 			$tweet = substr($title[0], $prefixlength);
 			if(!(isAtReply($tweet) || isReTweet($tweet))){	//Comment out this line to allow for @replies and retweets.
 				$item = $post;
@@ -95,12 +96,12 @@
 			}												//Also this line.
 		}
 
-		$tweet = substr(asString($item->xpath('title')), $prefixlength);
-		$tweet = preg_replace("/\.[ ]+/", ".<br />", $tweet, 1);	//force all sentences onto newlines.
+		$tweet = substr($item->title, $prefixlength);
+		$tweet = preg_replace("/(\.)[ ]+/", "$1<br />", $tweet, 1);	//force all sentences onto newlines.
 
-		$date = Date_Difference::getStringResolved(asString($item->xpath('pubDate')));
-		$loc = asString($item->xpath('twitter:place/twitter:full_name'));
-		$via = asString($item->xpath('twitter:source'));
+		$date = Date_Difference::getStringResolved($item->pubDate);
+		$loc = @firstOf($item->xpath('twitter:place/twitter:full_name'));	//Accessing these nodes like this is messy,
+		$via = @firstOf($item->xpath('twitter:source'));					//but this is the cleanest way I've found so far.
 		$r = "<div id='tweet'>$tweet</div>";
 
 		if($loc != "")	$r .= "<div id='twittertime'>tweeted $date from $loc</div>"; 
