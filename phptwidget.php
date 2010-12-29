@@ -97,11 +97,13 @@
 		}
 
 		$tweet = substr($item->title, $prefixlength);
-		$tweet = preg_replace("/(\.)[ ]+/", "$1<br />", $tweet, 1);	//force all sentences onto newlines.
+		//$tweet = preg_replace("/(\.)[ ]+/", "$1<br />", $tweet, 1);	//force all sentences onto newlines.
 
 		$date = Date_Difference::getStringResolved($item->pubDate);
 		$loc = @firstOf($item->xpath('twitter:place/twitter:full_name'));	//Accessing these nodes like this is messy,
 		$via = @firstOf($item->xpath('twitter:source'));					//but this is the cleanest way I've found so far.
+		$geoPoint = @firstOf($item->xpath('georss:point'));
+		if($geoPoint) $loc = "<a href='http://maps.google.com/?q=".urlencode($geoPoint)."' target='_blank' >$loc</a>";
 		$r = "<div id='tweet'>$tweet</div>";
 
 		if($loc != "")	$r .= "<div id='twittertime'>tweeted $date from $loc</div>"; 
