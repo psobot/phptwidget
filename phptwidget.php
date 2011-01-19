@@ -97,7 +97,8 @@
 		}
 
 		$tweet = substr($item->title, $prefixlength);
-		//$tweet = preg_replace("/(\.)[ ]+/", "$1<br />", $tweet, 1);	//force all sentences onto newlines.
+		//$tweet = preg_replace("/(\.)[ ]+/", "$1<br />", $tweet, 1);				//force all sentences onto newlines.
+		$tweet = preg_replace("%(http://[\S]+)%", "<a href=\"$1\">$1</a>", $tweet);	//link all URLs in the tweet
 
 		$date = Date_Difference::getStringResolved($item->pubDate);
 		$loc = @firstOf($item->xpath('twitter:place/twitter:full_name'));	//Accessing these nodes like this is messy,
