@@ -12,6 +12,7 @@
 
 	ini_set("allow_url_fopen", "On");
 	define("TWITTER_USERNAME", "psobot");		//Set your username here.
+    date_default_timezone_set("America/Toronto");
 
 	class Date_Difference {
 		/**
@@ -57,20 +58,7 @@
 	 *	input:		string of tweet
 	 *	returns:	boolean (if tweet is an @reply)
 	 */
-	function isAtReply($tweet)	{	return strpos($tweet, "@") === 0;		}
-
-	/*
-	 *	input:		string of tweet
-	 *	returns:	boolean (if tweet is a retweet)
-	 */
-	function isReTweet($tweet)	{	return strpos($tweet, "RT") === 0;		}
-
-	/*
-	 *	input:		Array
-	 *	returns:	first element of Array
-	 *	
-	 */
-	function firstOf($a)		{	return $a[0];							}
+	function isAtReply($tweet)	{	return !is_null($tweet->in_reply_to_user_id);	}
 
 	/*
 	 *	input: 	username to search for	(defaults to this file's TWITTER_USERNAME defined value)
@@ -79,36 +67,26 @@
 	 *				<div id='twittertime'>tweeted x minutes ago from [physical location or web client, in that order]</div>
 	 */
 	function latestTweet($username = TWITTER_USERNAME){
-		$data = simplexml_load_file("http://twitter.com/statuses/user_timeline/".$username.".rss");
-		if($data === false)	die("Something went wrong, Twitter's not responding... so insert a witty tweet here.");
+		$posts = json_decode(file_get_contents("http://twitter.com/statuses/user_timeline/".$username.".json"));
+		if($posts === false)	die("Something went wrong, Twitter's not responding... so insert a witty tweet here.");
 		
-		foreach($data->getNamespaces(true) as $prefix => $namespace)	$data->registerXPathNamespace($prefix, $namespace);
-
-		$prefixlength = strlen($username) + 2;
 		$item = null;
-		$posts = $data->xpath('/rss/channel/item');
 		foreach($posts as $post){
-			$title = $post->title;
-			$tweet = substr($title[0], $prefixlength);
-			if(!(isAtReply($tweet) || isReTweet($tweet))){	//Comment out this line to allow for @replies and retweets.
+			if(!(isAtReply($post) || $post->retweeted)){	//Comment out this line to allow for @replies and retweets.
 				$item = $post;
 				break;
 			}												//Also this line.
 		}
 
-		$tweet = substr($item->title, $prefixlength);
-		//$tweet = preg_replace("/(\.)[ ]+/", "$1<br />", $tweet, 1);				//force all sentences onto newlines.
-		$tweet = preg_replace("%(http://[\S]+)%", "<a href=\"$1\">$1</a>", $tweet);	//link all URLs in the tweet
-
-		$date = Date_Difference::getStringResolved($item->pubDate);
-		$loc = @firstOf($item->xpath('twitter:place/twitter:full_name'));	//Accessing these nodes like this is messy,
-		$via = @firstOf($item->xpath('twitter:source'));					//but this is the cleanest way I've found so far.
-		$geoPoint = @firstOf($item->xpath('georss:point'));
-		if($geoPoint) $loc = "<a href='http://maps.google.com/?q=".urlencode($geoPoint)."' target='_blank' >$loc</a>";
+		$tweet = preg_replace("%(http://[\S]+)%", "<a href=\"$1\" target=\"_blank\">$1</a>", $item->text);	//link all URLs in the tweet
+		$tweet = preg_replace("%@([\S]+)%", "<a href=\"http://twitter.com/$1\" target=\"_blank\">@$1</a>", $item->text);	//link all URLs in the tweet
+		$date = Date_Difference::getStringResolved($item->created_at);
+		if(!is_null($item->geo)) $loc = "<a href='http://maps.google.com/?q=".urlencode($item->geo->coordinates)."' target='_blank' >".$item->place->full_name."</a>";
+		else if(!is_null($item->place)) $loc = "<a href='http://twitter.com/places/".$item->place->id."' target='_blank' >".$item->place->full_name."</a>";
 		$r = "<div id='tweet'>$tweet</div>";
 
 		if($loc != "")	$r .= "<div id='twittertime'>tweeted $date from $loc</div>"; 
-		else if($via != "") $r .= "<div id='twittertime'>tweeted $date from $via</div>";
+		else if($item->source != "") $r .= "<div id='twittertime'>tweeted $date from ".$item->source."</div>";
 		else $r .= "<div id='twittertime'>tweeted $date</div>";
 
 		return $r;
